@@ -80,6 +80,23 @@ if ! command -v curl &>/dev/null; then
 fi
 
 ########################
+# Install CUDA Toolkit (if not already installed)
+########################
+
+log "Checking for CUDA Toolkit (nvcc)..."
+
+if ! command -v nvcc &>/dev/null; then
+  log "nvcc not found. Installing CUDA Toolkit via ${PKG_MGR} (cuda-13-0.x86_64)..."
+
+  # Install non-interactively
+  if ! $PKG_MGR -y install cuda-13-0.x86_64; then
+    log "WARNING: Failed to install cuda-13-0.x86_64. Please check CUDA repo / network."
+  fi
+else
+  log "nvcc already present. Skipping CUDA Toolkit installation."
+fi
+
+########################
 # Check Python binary
 ########################
 
@@ -111,7 +128,7 @@ log "Upgrading pip / wheel..."
 sudo -u "$TARGET_USER" bash -lc "source '$VENV_DIR/bin/activate' && pip install --upgrade pip wheel"
 
 ########################
-# Install Python packages
+# Install Python packages from requirements (optional)
 ########################
 
 if [[ -n "$REQUIREMENTS_URL" ]]; then
@@ -124,10 +141,7 @@ if [[ -n "$REQUIREMENTS_URL" ]]; then
   sudo -u "$TARGET_USER" bash -lc "source '$VENV_DIR/bin/activate' && pip install -r '$TMP_REQ'"
 
 else
-  log "REQUIREMENTS_URL is not set; skipping extra pip installs."
-  log "If you need additional packages, edit this block and add pip install commands."
-  # Example:
-  # sudo -u "$TARGET_USER" bash -lc "source '$VENV_DIR/bin/activate' && pip install transformers datasets"
+  log "REQUIREMENTS_URL is not set; will install default packages later."
 fi
 
 ########################
@@ -160,12 +174,32 @@ if ! grep -q "dl-env auto-activate" "$BASHRC" 2>/dev/null; then
 
 # === dl-env auto-activate (added by setup_dl_env.sh) ===
 if [ -d "$HOME/.venvs/dl-env" ]; then
+  # Activate your DL virtualenv
   source "$HOME/.venvs/dl-env/bin/activate"
 
-  # Common DL / multi-node environment variables (tune as needed)
+  # Use a tmp directory on the same filesystem as $HOME
+  mkdir -p "$HOME/tmp"
+  export TMPDIR="$HOME/tmp"
+
+  # ---- CUDA related settings ----
+  if [ -z "${CUDA_HOME:-}" ]; then
+    if command -v nvcc >/dev/null 2>&1; then
+      # e.g. /usr/local/cuda-13.0/bin/nvcc -> /usr/local/cuda-13.0
+      export CUDA_HOME="$(dirname "$(dirname "$(command -v nvcc)")")"
+    elif [ -d /usr/local/cuda ]; then
+      export CUDA_HOME="/usr/local/cuda"
+    fi
+  fi
+
+  if [ -n "${CUDA_HOME:-}" ]; then
+    export PATH="$CUDA_HOME/bin:$PATH"
+    export LD_LIBRARY_PATH="$CUDA_HOME/lib64:${LD_LIBRARY_PATH:-}"
+  fi
+
+  # ---- Common DL / multi-node environment variables ----
   export OMP_NUM_THREADS=8
   export NCCL_DEBUG=INFO
-  export NCCL_SOCKET_IFNAME=^lo,docker
+  export NCCL_SOCKET_IFNAME="${NCCL_SOCKET_IFNAME:-eth0}"
 fi
 # === end dl-env ===
 EOF
@@ -260,6 +294,37 @@ chmod +x "$HELPER_SCRIPT"
 if ! grep -q 'export PATH="$HOME/bin:$PATH"' "$BASHRC" 2>/dev/null; then
   echo 'export PATH="$HOME/bin:$PATH"' >> "$BASHRC"
 fi
+
+########################
+# Install core Python packages into venv as TARGET_USER
+########################
+
+log "Installing core Python packages into venv as ${TARGET_USER}..."
+
+sudo -u "$TARGET_USER" bash -lc "
+  set -euo pipefail
+  mkdir -p \"\$HOME/tmp\"
+  export TMPDIR=\"\$HOME/tmp\"
+  source '$VENV_DIR/bin/activate'
+  pip install --no-cache-dir 'torch==2.8.0' 'torchvision'
+  pip install --no-cache-dir \
+    pre-commit \
+    clang-format \
+    accelerate \
+    pytest-xdist \
+    pydot \
+    nltk \
+    torch_tb_profiler \
+    datasets \
+    lightning \
+    wheel \
+    transformers \
+    wandb \
+    'huggingface-hub[cli]' \
+    omegaconf \
+    hydra-core
+  pip install --no-cache-dir flash-attn --no-build-isolation
+"
 
 ########################
 # Done
