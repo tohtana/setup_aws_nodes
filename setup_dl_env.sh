@@ -71,7 +71,7 @@ log "Installing base packages via ${PKG_MGR}..."
 $PKG_MGR -y update || true
 $PKG_MGR -y install \
   python3 python3-pip \
-  python3.11 python3.11-pip \
+  python3.11 python3.11-pip python3.11-devel \
   git tmux htop
   
 # Ensure curl command exists; prefer curl-minimal on AL2023
@@ -307,6 +307,7 @@ sudo -u "$TARGET_USER" bash -lc "
   mkdir -p \"\$HOME/tmp\"
   export TMPDIR=\"\$HOME/tmp\"
   source '$VENV_DIR/bin/activate'
+  pip install packaging psutil
   pip install --no-cache-dir torch==2.9.1 torchvision --index-url https://download.pytorch.org/whl/cu130
   pip install --no-cache-dir flash-attn --no-build-isolation
   pip install --no-cache-dir \
