@@ -20,7 +20,7 @@ PROJECT_ROOT="${PROJECT_ROOT:-/home/${TARGET_USER}/workspace}"
 VENV_DIR="${VENV_DIR:-/home/${TARGET_USER}/.venvs/dl-env}"
 
 # Python binary to use
-PYTHON_BIN="${PYTHON_BIN:-python3}"
+PYTHON_BIN="${PYTHON_BIN:-python3.11}"
 
 # (Optional) Git repository for your training code
 REPO_URL="${REPO_URL:-}"
@@ -71,8 +71,9 @@ log "Installing base packages via ${PKG_MGR}..."
 $PKG_MGR -y update || true
 $PKG_MGR -y install \
   python3 python3-pip \
+  python3.11 python3.11-pip \
   git tmux htop
-
+  
 # Ensure curl command exists; prefer curl-minimal on AL2023
 if ! command -v curl &>/dev/null; then
   log "curl command not found, installing curl-minimal..."
@@ -306,7 +307,7 @@ sudo -u "$TARGET_USER" bash -lc "
   mkdir -p \"\$HOME/tmp\"
   export TMPDIR=\"\$HOME/tmp\"
   source '$VENV_DIR/bin/activate'
-  pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cu130
+  pip install --no-cache-dir torch==2.9.1 torchvision --index-url https://download.pytorch.org/whl/cu130
   pip install --no-cache-dir flash-attn --no-build-isolation
   pip install --no-cache-dir \
     pre-commit \
