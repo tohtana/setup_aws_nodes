@@ -308,6 +308,7 @@ sudo -u "$TARGET_USER" bash -lc "
   export TMPDIR=\"\$HOME/tmp\"
   source '$VENV_DIR/bin/activate'
   pip install packaging psutil
+  pip install --upgrade ninja
   pip install --no-cache-dir torch==2.9.1 torchvision --index-url https://download.pytorch.org/whl/cu130
   pip install --no-cache-dir flash-attn --no-build-isolation
   pip install --no-cache-dir \
