@@ -306,7 +306,8 @@ sudo -u "$TARGET_USER" bash -lc "
   mkdir -p \"\$HOME/tmp\"
   export TMPDIR=\"\$HOME/tmp\"
   source '$VENV_DIR/bin/activate'
-  pip install --no-cache-dir 'torch==2.8.0' 'torchvision'
+  pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cu130
+  pip install --no-cache-dir flash-attn --no-build-isolation
   pip install --no-cache-dir \
     pre-commit \
     clang-format \
@@ -323,7 +324,6 @@ sudo -u "$TARGET_USER" bash -lc "
     'huggingface-hub[cli]' \
     omegaconf \
     hydra-core
-  pip install --no-cache-dir flash-attn --no-build-isolation
 "
 
 ########################
